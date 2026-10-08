@@ -897,14 +897,79 @@ abline(pglsModel_FMax_bioclim, col = "gray70", lwd = 3)
 
 ###### PHYLO4D E ANALISES RELACIONADAS ######
 ##/////MONTAR PHYLO4D\\\\\##
-Pipridae.p4d <- phylo4d(pruned.tree, Pipridae.stats)
+Pipridae.p4d <- Pipridae.stats[-33,]
+
+Pipridae.p4d <- phylo4d(pruned.tree, Pipridae.p4d, match.data=F)
 
 ##gráficos mostrando valores dos atributos em meio a filogenia
 
+barplot.phylo4d(Pipridae.p4d, trait = "logFdom")
+
+
+fdom.cg <- phyloCorrelogram(Pipridae.p4d, trait = "logFdom")
+plot(fdom.cg)
 
 ##cálculo de sinal filogenético dos atributos
 signal <- phyloSignal(Pipridae.p4d[,-1], reps = 1000)
 signal
+
+library(openxlsx)
+
+df.signal <- as.data.frame(signal$pvalue)
+df.signal$parameter <- rownames(df.signal)
+write.xlsx(df.signal, "table 5.xlsx")
+
+##correlograma de sinal filogenético
+
+par(mfrow = c(2,2))
+
+fdom.cg <- phyloCorrelogram(Pipridae.p4d, trait = "logFdom")
+plot(fdom.cg, main = "Peak Frequency")
+
+ban.cg <- phyloCorrelogram(Pipridae.p4d, trait = "logBan")
+plot(ban.cg, main = "Frequency bandwidth")
+
+dur.cg <- phyloCorrelogram(Pipridae.p4d, trait = "logDur")
+plot(dur.cg, main = "Call duration")
+
+fmax.cg <- phyloCorrelogram(Pipridae.p4d, trait = "logFmax")
+plot(fmax.cg, main = "Maximum frequency")
+
+##encontrar hotspots de autocorrelação filogenética
+
+fdom.lipa <- lipaMoran(Pipridae.p4d, trait = "logFdom", prox.phylo = "nNodes", as.p4d = TRUE)
+
+points.fdom <- lipaMoran(Pipridae.p4d, trait = "logFdom", prox.phylo = "nNodes")$p.value
+
+points.fdom <- ifelse(points.fdom < 0.05, "red", "black")
+dotplot.phylo4d(fdom.lipa, dot.col = points.fdom)
+
+
+
+ban.lipa <- lipaMoran(Pipridae.p4d, trait = "logBan", prox.phylo = "nNodes", as.p4d = TRUE)
+
+points.ban <- lipaMoran(Pipridae.p4d, trait = "logBan", prox.phylo = "nNodes")$p.value
+
+points.ban <- ifelse(points.ban < 0.05, "red", "black")
+dotplot.phylo4d(ban.lipa, dot.col = points.ban)
+
+
+
+dur.lipa <- lipaMoran(Pipridae.p4d, trait = "logDur", prox.phylo = "nNodes", as.p4d = TRUE)
+
+points.dur <- lipaMoran(Pipridae.p4d, trait = "logDur", prox.phylo = "nNodes")$p.value
+
+points.dur <- ifelse(points.dur < 0.05, "red", "black")
+dotplot.phylo4d(dur.lipa, dot.col = points.dur)
+
+
+
+fmax.lipa <- lipaMoran(Pipridae.p4d, trait = "logFmax", prox.phylo = "nNodes", as.p4d = TRUE)
+
+points.fmax <- lipaMoran(Pipridae.p4d, trait = "logFmax", prox.phylo = "nNodes")$p.value
+
+points.fmax <- ifelse(points.fmax < 0.05, "red", "black")
+dotplot.phylo4d(fmax.lipa, dot.col = points.fmax)
 
 
 ###### NOVAS ANALISES ######
@@ -932,7 +997,8 @@ Pipridae.Std <- decostand(x = Pipridae.New[,-1], method = "standardize")
 Pipridae.Std$especie <- Pipridae.New$especie
 
 boxplot(Pipridae.Std)
-P
+
+
 ###????
 glm_fdom1 <- glmer(FDOM ~ bio5 + bio6 + lat + (1|especie), family = gaussian(link = "inverse"), data = Pipridae.Std, 
                    control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
@@ -965,7 +1031,7 @@ summary(glm_fdom7)
 model.sel(glm_fdom1, glm_fdom2, glm_fdom3, glm_fdom4, glm_fdom5, glm_fdom6, glm_fdom7)
 
 
-plot_model(glm_fdom1, type = "pred")
+plot_model(glm_fdom4, type = "pred")
 
 
 
@@ -1013,8 +1079,9 @@ model.sel(glm_fmax1, glm_fmax2, glm_fmax3, glm_fmax4)
 
 ### Duração com lei de Bergman
 
-glm_dur1 <- glmer(DUR ~ bio5 + bio6 + lat + (1|especie), family = gaussian(link = "inverse"), data = Pipridae.Std)
-summary(glm_fmin1)
+glm_dur1 <- glmer(DUR ~ bio5 + bio6 + lat + (1|especie), family = gaussian(link = "inverse"), data = Pipridae.Std, 
+                  control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+summary(glm_dur1)
 
 
 
@@ -1105,6 +1172,10 @@ pgls_fmax7 <- pgls(logFmax ~ bio6, data = Pipridae.caper, delta= "ML")
 summary(pgls_fmax7)
 pgls_fmax7$aic
 
+pgls_fmax0 <-pgls(logFmax ~ 1, data = Pipridae.caper, delta= "ML", lambda = "ML")
+summary(pgls_fmax0)
+pgls_fmax0$aic
+
 #Nenhum modelo foi adequado
 
 
@@ -1138,6 +1209,9 @@ pgls_fmin7 <- pgls(logFmin ~ Beak.Length_Culmen, data = Pipridae.caper, delta= "
 summary(pgls_fmin7)
 pgls_fmin7$aic
 
+pgls_fmin0 <-pgls(logFmin ~ 1, data = Pipridae.caper, delta= "ML", lambda = "ML")
+summary(pgls_fmin0)
+pgls_fmin0$aic
 
 #Modelo pace #
 
@@ -1158,15 +1232,15 @@ summary(pgls_pace4)
 pgls_pace4$aic
 
 ##*
-pgls_pace5 <- pgls(logPace ~ logMass + Beak.Width + Beak.Depth, data = Pipridae.caper, delta= "ML", lambda = "ML")
+pgls_pace5 <- pgls(logPace ~ logMass + Beak.Length_Culmen + Beak.Depth, data = Pipridae.caper, delta= "ML", lambda = "ML")
 summary(pgls_pace5)
 pgls_pace5$aic
 
-pgls_pace6 <- pgls(logPace ~ logMass + Beak.Depth, data = Pipridae.caper, delta= "ML", lambda = "ML")
+pgls_pace6 <- pgls(formula = logPace ~ Beak.Length_Culmen + Beak.Depth, data = Pipridae.caper, lambda = "ML", delta = "ML")
 summary(pgls_pace6)
 pgls_pace6$aic
 
-pgls_pace7 <- pgls(logPace ~ logMass, data = Pipridae.caper, delta= "ML", lambda = "ML")
+pgls_pace7 <- pgls(logPace ~ Beak.Length_Culmen, data = Pipridae.caper, delta= "ML", lambda = "ML")
 summary(pgls_pace7)
 pgls_pace7$aic
 
@@ -1217,6 +1291,9 @@ pgls_ban7 <- pgls(logBan ~ Beak.Length_Culmen, data = Pipridae.caper, delta= "ML
 summary(pgls_ban7)
 pgls_ban7$aic
 
+pgls_ban0 <- pgls(logBan ~ 1, data = Pipridae.caper, delta= "ML", lambda = "ML")
+summary(pgls_ban0)
+pgls_ban0$aic
 
 #Modelo Duração #
 
@@ -1288,6 +1365,9 @@ pgls_not7 <- pgls(NNOT ~ logMass, data = Pipridae.caper, delta= "ML", lambda = "
 summary(pgls_not7)
 pgls_not7$aic
 
+pgls_not0 <- pgls(NNOT ~ 1, data = Pipridae.caper, delta= "ML", lambda = "ML")
+summary(pgls_not0)
+pgls_not0$aic
 
 ###### MODELOS NOVOS COM DICROMATISMO ######
 
@@ -1662,10 +1742,6 @@ pgls_ban_pca5 <- pgls(logBan ~ BioclimPC1 + Beak.Length_Culmen, data = Pipridae.
 summary(pgls_ban_pca5)
 pgls_ban_pca5$aic
 
-pgls_ban_pca6 <- pgls(logBan ~ Beak.Length_Culmen, data = Pipridae.caper, delta= "ML", lambda = "ML")
-summary(pgls_ban_pca6)
-pgls_ban_pca6$aic
-
 
 ### DUR
 pgls_dur_pca1 <- pgls(logDur ~ logMass + BioclimPC1, data = Pipridae.caper, delta= "ML", lambda = "ML")
@@ -1733,6 +1809,14 @@ Pipridae.stats %>%
   ggplot(aes(x = Beak.Width, y = logFdom)) + 
   geom_point(alpha = 0.5, color = "darkgray") + 
   labs(x = "Beak width", y = "log(FDom)") + 
+  geom_smooth(method = "lm", color = "black") +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),panel.background = element_blank())
+
+Pipridae.stats %>% 
+  ggplot(aes(x = Beak.Depth, y = logFdom)) + 
+  geom_point(alpha = 0.5, color = "darkgray") + 
+  labs(x = "Beak depth", y = "log(FDom)") + 
   geom_smooth(method = "lm", color = "black") +
   theme(panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(),panel.background = element_blank())
